@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSMWARE - login</title>
+    <meta name="Author" content="Antoine Bousquet" />
+    <meta name="Description" content="Page de login.">
+    <meta name="keywords" content="menu, horizontal">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <style>
+        div {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+	<div class="container-fluid">
+		<div class="row">
+			<div class="col-md-2">
+				<div style="text-align: left; margin-left: 50px">
+						<h3 id="yourHP">Your HP: 10</h3>
+						<h3 id="monsterHP">Monster HP: 100</h3>
+						<h3 id="timer">Time: </h3>
+				</div>
+			</div>
+			<div class="col-md-8">
+				<canvas id="canvas"/>
+			</div>
+			<div class="col-md-2">
+				
+			</div>
+		</div>
+	</div>
+    <!-- <div>
+        <canvas id="canvas"/>
+    </div> -->
+	<script type="text/javascript" src="http://code.jquery.com/jquery.min.js"></script>
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <script type="text/javascript">
+        $(function() {
+        // Config de base pour le canvas.
+        var can = document.getElementById('canvas');
+        var ctx = can.getContext('2d');
+        can.height = 800; 
+        can.width = 700;
+        ctx.fillStyle='black';
+        ctx.fillRect(0,0,can.width,can.height);
+
+		// Loader les images à l'avance.
+		var imgShip = new Image();
+		imgShip.src = "images/ship.png";
+
+		var imgMonster = new Image();
+		imgMonster.src = "images/monster1.jpg";
+
+		var imgBullet = new Image();
+		imgBullet.src = "images/bullet.png";
+
+		var imgBullet2 = new Image();
+		imgBullet2.src = "images/bullet2.png";
+
+		var left = false;
+		var right = false;
+		var isShooting = false;
+
+		// Object du vaisseau joueur.
+        var ship = {
+            x: 270,
+            y: 670,
+			vie: 10,
+			mort: false,
+        }
+		
+		// Object du monstre.
+		var monster = {
+			x: 280,
+			y: 30,
+			vie: 100,
+			vitesse: 1,
+			bulletSpeed: 100,
+			mort: false,
+		}
+		
+		// Fonction pour recommencer la partie.
+		function restartGame() {
+			ctx.clearRect(0, 0, 800, 700);
+			ctx.fillRect(0, 0, 800, 700);
+			bullet = [];
+			bulletMonstre = [];
+			ship.x = 270;
+			ship.y = 670;
+			ship.vie = 10;
+			ship.mort = false;
+			monster.x = 280;
+			monster.y = 30;
+			monster.vie = 100;
+			monster.vitesse = 1;
+			monster.bulletSpeed = 100;
+			monster.mort = false;
+			time = 0;
+			left = false;
+			right = false;
+			isShooting = false;
+			$("#yourHP").text("Your HP: " + ship.vie);
+			$("#monsterHP").text("Monster HP: " + monster.vie);
+			$("#timer").text("Time: " + time);
+		}
+		
+		function engin() {
+			drawShip();
+			drawMonster(); 
+			drawProjectilMonstre();
+			ProjectilVelocityMonstre();
+			ProjectilVelocity();
+		}
+
+        // Afficher l'image du ship.
+        function drawShip() {
+			if (ship.mort == false) {
+				if (left)
+				{
+					ship.x -= 4;
+				}
+				if (right)
+				{
+					ship.x += 4;
+				}
+				ctx.drawImage(imgShip, ship.x, ship.y, 150, 110);
+			}
+        }
+		
+		// Afficher l'image du monstre.
+		var direction = true;
+        function drawMonster() {
+			if (monster.mort == false) {
+				ctx.clearRect(monster.x, monster.y, 100, 80);
+				ctx.fillRect(monster.x, monster.y, 100, 80);
+				ctx.drawImage(imgMonster, monster.x, monster.y, 100, 80);
+				// Structure conditionnelle pour ajuster la vitesse du monstre selon les points de vie.
+				if (monster.vie >= 60) {
+					monster.vitesse = 1;
+				}
+				else if (monster.vie >= 30 && monster.vie <= 60) {
+					monster.vitesse = 2;
+				}
+				else if (monster.vie >= 0 && monster.vie <= 30) {
+					monster.vitesse = 3;
+				}
+				// Structure conditionnelle pour modifier la direction du monstre.
+				if (direction == true) {
+					monster.x+=monster.vitesse;
+				}
+				else if (direction == false) {
+					monster.x-=monster.vitesse;
+			    }
+				if (monster.x <= 20) {
+					direction = true;
+				}
+				else if (monster.x >= 580) {
+					direction = false;
+				}
+			}	
+			else if (monster.mort == true) {
+				ctx.clearRect(monster.x, monster.y, 100, 80);
+				ctx.fillRect(monster.x, monster.y, 100, 80);
+			}
+        }
+		
+		// Foncion et array pour dessiner les projectiles.
+        var bullet = [];
+        function drawProjectil() {
+            var x = ship.x + 50;
+            var y = ship.y - 40;
+            var bul = {
+                source: "bullet2.png",
+                x: x,
+                y: y,
+                sizex: 50,
+                sizey: 50
+            }
+
+			// Systeme pour ne pas tirer trop vite. Semble causer des lenteurs. Besoin optimisation.
+			var toLow = false;
+			bullet.forEach(element => {
+				if (element.y >= 550){
+					toLow = true;
+				}
+    		});
+			if (toLow == false) {
+				bullet.push(bul);
+            	ctx.drawImage(imgBullet2, x, y, 70, 70);
+			}
+        }
+
+		// Foncion et array pour dessiner les projectiles du monstre.
+        var bulletMonstre = [];
+        function drawProjectilMonstre() {
+			if (monster.mort == false) {
+				random = Math.floor(Math.random() * 200);
+			}
+			if (random <= monster.bulletSpeed) {
+			    var x = monster.x + 50;
+				var y = monster.y + 80;
+				
+				var bul = {
+					source: "bullet.png",
+					x: x,
+					y: y,
+					sizex: 50,
+					sizey: 50
+				}
+
+				bulletMonstre.push(bul);
+				ctx.drawImage(imgBullet2, x, y, 70, 70);
+			}
+			if (monster.vie >= 60) {
+				monster.bulletSpeed = 3;
+			}
+			else if (monster.vie >= 30 && monster.vie < 60) {
+				monster.bulletSpeed = 6
+			}
+			else if (monster.vie >= 0 && monster.vie < 30) {
+				monster.bulletSpeed = 10
+			}
+        }
+		
+		
+		// Calculer le déplacemenet des projectiles des monstres.
+        function ProjectilVelocityMonstre() {
+			// Retier les projectiles qui sont trop haut.
+			var Compteur = 0;
+			bulletMonstre.forEach(element => {
+				if (element.y >= 650){
+					ctx.clearRect(element.x, element.y, 60, 60);
+					ctx.fillRect(element.x, element.y, 60, 60);
+					bulletMonstre.splice(Compteur, 1);
+				}
+            });
+			
+			// Faire avancer le projectil vers le haut et vérifier si il a une colision avec le vaisseau.
+			var Compteur2 = 0;
+            bulletMonstre.forEach(element => {
+                ctx.clearRect(element.x, element.y, 60, 60);
+				ctx.fillRect(element.x, element.y, 60, 60);
+                element.y+=5; 
+				
+				if (element.x <= ship.x + 130 && element.x >= ship.x - 30 && element.y >= ship.y - 70) {
+					ship.vie--;
+					ctx.clearRect(element.x, element.y, 60, 60);
+					ctx.fillRect(element.x, element.y, 60, 60);
+					bulletMonstre.splice(Compteur, 1);
+					$("#yourHP").text("Your HP: " + ship.vie);
+					//console.log("Ship: " + ship.vie);
+				}
+				else {
+					ctx.drawImage(imgBullet, element.x, element.y, 70, 70);
+				}
+				if (ship.vie <= 0) {
+				    ship.mort = true;
+					ctx.clearRect(ship.x, ship.y, 150, 110);
+					ctx.fillRect(ship.x, ship.y, 150, 110);
+					alert("Vous avez perdu!");
+					restartGame();
+				}
+				Compteur2++;
+            });
+        }
+		
+		// Calculer le déplacemenet des projectiles.
+        function ProjectilVelocity() {
+			// Retier les projectiles qui sont trop haut.
+			var Compteur = 0;
+			if (isShooting)
+				drawProjectil();
+
+			bullet.forEach(element => {
+				if (element.y <= 50){
+					ctx.clearRect(element.x, element.y, 60, 60);
+					ctx.fillRect(element.x, element.y, 60, 60);
+					bullet.splice(Compteur, 1);
+				}
+            });
+			
+			// Faire avancer le projectil vers le haut et vérifier si il a une colision avec le monstre.
+			var Compteur2 = 0;
+            bullet.forEach(element => {
+                ctx.clearRect(element.x, element.y, 60, 60);
+				ctx.fillRect(element.x, element.y, 60, 60);
+                element.y-=10;
+				
+
+				if (element.x <= monster.x + 80 && element.x >= monster.x - 40 && element.y <= monster.y + 70) {
+					monster.vie--;
+					ctx.clearRect(element.x, element.y, 60, 60);
+					ctx.fillRect(element.x, element.y, 60, 60);
+					bullet.splice(Compteur, 1);
+					$("#monsterHP").text("Monster HP: " + monster.vie);
+					//console.log("Monstre: " + monster.vie);
+				}
+				else {
+					ctx.drawImage(imgBullet2, element.x, element.y, 70, 70);
+				}
+				if (monster.vie <= 0) {
+				    monster.mort = true;
+					ctx.clearRect(ship.x, ship.y, 150, 110);
+					ctx.fillRect(ship.x, ship.y, 150, 110);
+					alert("Vous avez gagné!");
+					restartGame();
+				}
+				Compteur2++;
+            });
+        }
+        
+		// Fonction pour faire déplacer le vaisseau.
+        window.addEventListener("keydown", moveSomething, false);
+        function moveSomething(e) {
+            switch(e.keyCode){
+                case 37: // left key pressed
+					left = true;
+                    break;
+                case 39: // right key pressed
+					right = true;
+                    break;
+                case 32: // space key pressed
+                    isShooting = true;
+                    break;
+            }
+        }
+
+		window.addEventListener("keyup", StopSomething, false);
+        function StopSomething(e) {
+            switch(e.keyCode){
+                case 37: // left key pressed
+					left = false;
+                    break;
+                case 39: // right key pressed
+					right = false;
+                    break;
+                case 32: // space key pressed
+                    isShooting = false;
+                    break;
+            }
+        }
+		
+		var time = 0;
+		function clock() {
+			$("#timer").text("Time: " + time);
+			time++;
+		}
+
+		setInterval(clock, 1000);
+		setInterval(engin, 17);
+        });
+    </script>
+</body>
+</html>
